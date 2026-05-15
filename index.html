@@ -322,6 +322,75 @@
       .grid { grid-template-columns: repeat(2, 1fr); gap: 10px; padding: 12px; }
       header h1 { font-size: 1.1rem; }
     }
+
+    .admin-link {
+      display: block;
+      text-align: center;
+      padding: 20px;
+      font-size: 0.72rem;
+      color: #cbd5e1;
+      cursor: pointer;
+      user-select: none;
+    }
+
+    .admin-modal-backdrop {
+      position: fixed;
+      inset: 0;
+      background: rgba(0,0,0,0.5);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      z-index: 400;
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity 0.2s;
+    }
+
+    .admin-modal-backdrop.show {
+      opacity: 1;
+      pointer-events: all;
+    }
+
+    .admin-modal-box {
+      background: #fff;
+      border-radius: 16px;
+      padding: 28px 24px;
+      text-align: center;
+      max-width: 300px;
+      width: 90%;
+    }
+
+    .admin-modal-box h3 { font-size: 1rem; color: #1e293b; margin-bottom: 16px; }
+
+    .admin-modal-box input {
+      width: 100%;
+      border: 2px solid #e2e8f0;
+      border-radius: 8px;
+      padding: 10px 14px;
+      font-size: 1rem;
+      text-align: center;
+      letter-spacing: 4px;
+      margin-bottom: 12px;
+      outline: none;
+    }
+
+    .admin-modal-box input:focus { border-color: #2563eb; }
+
+    .admin-btn-row { display: flex; gap: 8px; }
+
+    .admin-btn-row button {
+      flex: 1;
+      padding: 10px;
+      border: none;
+      border-radius: 8px;
+      font-size: 0.9rem;
+      font-weight: 600;
+      cursor: pointer;
+    }
+
+    .btn-confirm { background: #ef4444; color: #fff; }
+    .btn-cancel { background: #e2e8f0; color: #475569; }
+    .admin-error { font-size: 0.78rem; color: #ef4444; margin-bottom: 8px; display: none; }
   </style>
 </head>
 <body>
@@ -349,8 +418,22 @@
 
 <main class="grid" id="grid"></main>
 
+<div class="admin-link" onclick="openAdminModal()">관리자</div>
+
 <div class="submit-bar">
   <button id="submitBtn" disabled>작품을 선택해 주세요</button>
+</div>
+
+<div class="admin-modal-backdrop" id="adminModal">
+  <div class="admin-modal-box">
+    <h3>관리자 — 투표 초기화</h3>
+    <input type="password" id="adminPwInput" placeholder="비밀번호" maxlength="20">
+    <div class="admin-error" id="adminError">비밀번호가 틀렸어요</div>
+    <div class="admin-btn-row">
+      <button class="btn-cancel" onclick="closeAdminModal()">취소</button>
+      <button class="btn-confirm" onclick="confirmReset()">초기화</button>
+    </div>
+  </div>
 </div>
 
 <div class="modal-backdrop" id="modalBackdrop">
@@ -555,6 +638,34 @@
     document.getElementById('modalSelections').textContent =
       ids.map(id => `작품 ${id}번`).join('  ·  ');
     document.getElementById('modalBackdrop').classList.add('show');
+  });
+
+  // ── 관리자 초기화 ──────────────────────────────────────────────────────
+  const ADMIN_PW = '1234'; // 비밀번호 변경 시 여기 수정
+
+  function openAdminModal() {
+    document.getElementById('adminPwInput').value = '';
+    document.getElementById('adminError').style.display = 'none';
+    document.getElementById('adminModal').classList.add('show');
+    document.getElementById('adminPwInput').focus();
+  }
+
+  function closeAdminModal() {
+    document.getElementById('adminModal').classList.remove('show');
+  }
+
+  function confirmReset() {
+    const pw = document.getElementById('adminPwInput').value;
+    if (pw !== ADMIN_PW) {
+      document.getElementById('adminError').style.display = 'block';
+      return;
+    }
+    localStorage.removeItem(STORAGE_KEY);
+    location.reload();
+  }
+
+  document.getElementById('adminPwInput').addEventListener('keydown', e => {
+    if (e.key === 'Enter') confirmReset();
   });
 
   function closeModal() {
