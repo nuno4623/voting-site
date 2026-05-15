@@ -1,0 +1,579 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>학생 작품 투표</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: 'Segoe UI', sans-serif;
+      background: #f0f4f8;
+      min-height: 100vh;
+      padding-bottom: 100px;
+    }
+
+    header {
+      background: linear-gradient(135deg, #1e3a5f 0%, #2d6a4f 100%);
+      color: #fff;
+      padding: 28px 20px 20px;
+      text-align: center;
+      position: sticky;
+      top: 0;
+      z-index: 100;
+      box-shadow: 0 2px 12px rgba(0,0,0,0.25);
+    }
+
+    header h1 { font-size: 1.4rem; font-weight: 700; margin-bottom: 6px; }
+    header p { font-size: 0.88rem; opacity: 0.9; margin-bottom: 10px; }
+
+    .counter-bar {
+      display: inline-flex;
+      align-items: center;
+      gap: 12px;
+      background: rgba(255,255,255,0.15);
+      border-radius: 999px;
+      padding: 6px 18px;
+      font-size: 0.95rem;
+      font-weight: 600;
+    }
+
+    .dots {
+      display: flex;
+      gap: 6px;
+    }
+
+    .dot {
+      width: 14px;
+      height: 14px;
+      border-radius: 50%;
+      background: rgba(255,255,255,0.35);
+      transition: background 0.2s;
+    }
+
+    .dot.filled { background: #52e09c; }
+
+    .grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+      gap: 16px;
+      padding: 20px;
+      max-width: 1200px;
+      margin: 0 auto;
+    }
+
+    .card {
+      background: #fff;
+      border-radius: 14px;
+      overflow: hidden;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+      cursor: pointer;
+      position: relative;
+      transition: transform 0.15s, box-shadow 0.15s, outline 0.1s;
+      outline: 3px solid transparent;
+      -webkit-tap-highlight-color: transparent;
+      user-select: none;
+    }
+
+    .card:hover { transform: translateY(-3px); box-shadow: 0 6px 20px rgba(0,0,0,0.12); }
+
+    .card.selected {
+      outline: 3px solid #2563eb;
+      box-shadow: 0 0 0 6px rgba(37,99,235,0.12);
+    }
+
+    .card.disabled-card {
+      opacity: 0.5;
+      cursor: not-allowed;
+    }
+
+    .card.disabled-card:hover { transform: none; }
+
+    .media-wrap {
+      width: 100%;
+      aspect-ratio: 1 / 1;
+      overflow: hidden;
+      background: #e8edf2;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      position: relative;
+    }
+
+    .media-wrap img {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+      display: block;
+    }
+
+    .media-wrap video {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+      display: block;
+    }
+
+    .pdf-thumb {
+      width: 100%;
+      height: 100%;
+      border: none;
+      display: block;
+      pointer-events: none;
+    }
+
+    .pdf-fallback {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      color: #64748b;
+      font-size: 0.85rem;
+      padding: 16px;
+      text-align: center;
+    }
+
+    .pdf-icon {
+      font-size: 2.5rem;
+    }
+
+    .badge-num {
+      position: absolute;
+      top: 8px;
+      left: 8px;
+      background: rgba(0,0,0,0.55);
+      color: #fff;
+      font-size: 0.72rem;
+      font-weight: 700;
+      border-radius: 6px;
+      padding: 2px 7px;
+      backdrop-filter: blur(4px);
+    }
+
+    .check-mark {
+      position: absolute;
+      top: 8px;
+      right: 8px;
+      width: 28px;
+      height: 28px;
+      background: #2563eb;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      opacity: 0;
+      transform: scale(0.5);
+      transition: opacity 0.15s, transform 0.15s;
+    }
+
+    .card.selected .check-mark {
+      opacity: 1;
+      transform: scale(1);
+    }
+
+    .check-mark svg {
+      width: 16px;
+      height: 16px;
+      fill: none;
+      stroke: #fff;
+      stroke-width: 3;
+      stroke-linecap: round;
+      stroke-linejoin: round;
+    }
+
+    .card-label {
+      padding: 10px 12px;
+      font-size: 0.82rem;
+      font-weight: 600;
+      color: #334155;
+      text-align: center;
+    }
+
+    /* PDF open button */
+    .pdf-open-btn {
+      display: inline-block;
+      margin-top: 8px;
+      padding: 5px 14px;
+      background: #e2e8f0;
+      border-radius: 6px;
+      font-size: 0.78rem;
+      color: #475569;
+      text-decoration: none;
+      pointer-events: all;
+    }
+
+    /* Submit bar */
+    .submit-bar {
+      position: fixed;
+      bottom: 0;
+      left: 0;
+      right: 0;
+      background: #fff;
+      padding: 14px 20px;
+      box-shadow: 0 -2px 16px rgba(0,0,0,0.1);
+      display: flex;
+      justify-content: center;
+      z-index: 200;
+    }
+
+    #submitBtn {
+      background: #2563eb;
+      color: #fff;
+      border: none;
+      border-radius: 12px;
+      padding: 14px 48px;
+      font-size: 1rem;
+      font-weight: 700;
+      cursor: pointer;
+      transition: background 0.2s, opacity 0.2s;
+      width: 100%;
+      max-width: 400px;
+    }
+
+    #submitBtn:disabled {
+      background: #94a3b8;
+      cursor: not-allowed;
+    }
+
+    #submitBtn:not(:disabled):hover { background: #1d4ed8; }
+
+    /* Modal */
+    .modal-backdrop {
+      position: fixed;
+      inset: 0;
+      background: rgba(0,0,0,0.5);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      z-index: 300;
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity 0.2s;
+    }
+
+    .modal-backdrop.show {
+      opacity: 1;
+      pointer-events: all;
+    }
+
+    .modal-box {
+      background: #fff;
+      border-radius: 20px;
+      padding: 36px 28px;
+      text-align: center;
+      max-width: 340px;
+      width: 90%;
+      transform: scale(0.9);
+      transition: transform 0.2s;
+    }
+
+    .modal-backdrop.show .modal-box { transform: scale(1); }
+
+    .modal-icon { font-size: 3rem; margin-bottom: 12px; }
+    .modal-box h2 { font-size: 1.3rem; margin-bottom: 8px; color: #1e293b; }
+    .modal-box p { font-size: 0.9rem; color: #64748b; margin-bottom: 6px; }
+    .modal-selections { font-size: 0.85rem; color: #2563eb; font-weight: 600; margin: 10px 0 20px; }
+
+    .modal-close-btn {
+      background: #2563eb;
+      color: #fff;
+      border: none;
+      border-radius: 10px;
+      padding: 12px 36px;
+      font-size: 0.95rem;
+      font-weight: 600;
+      cursor: pointer;
+    }
+
+    /* Already voted screen */
+    .voted-screen {
+      display: none;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      min-height: 60vh;
+      text-align: center;
+      padding: 40px 20px;
+    }
+
+    .voted-screen .big-icon { font-size: 4rem; margin-bottom: 16px; }
+    .voted-screen h2 { font-size: 1.4rem; color: #1e293b; margin-bottom: 8px; }
+    .voted-screen p { color: #64748b; margin-bottom: 4px; font-size: 0.9rem; }
+    .voted-screen .selections-display {
+      margin: 16px 0;
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      justify-content: center;
+    }
+
+    .sel-chip {
+      background: #dbeafe;
+      color: #1d4ed8;
+      border-radius: 999px;
+      padding: 5px 14px;
+      font-size: 0.85rem;
+      font-weight: 600;
+    }
+
+    @media (max-width: 480px) {
+      .grid { grid-template-columns: repeat(2, 1fr); gap: 10px; padding: 12px; }
+      header h1 { font-size: 1.1rem; }
+    }
+  </style>
+</head>
+<body>
+
+<header>
+  <h1>학생 작품 투표</h1>
+  <p>마음에 드는 작품을 <strong>최대 3개</strong> 선택 후 투표하세요</p>
+  <div class="counter-bar">
+    <span id="counterText">0 / 3 선택</span>
+    <div class="dots">
+      <div class="dot" id="dot1"></div>
+      <div class="dot" id="dot2"></div>
+      <div class="dot" id="dot3"></div>
+    </div>
+  </div>
+</header>
+
+<div id="votedScreen" class="voted-screen">
+  <div class="big-icon">✅</div>
+  <h2>이미 투표하셨습니다!</h2>
+  <p>선택하신 작품:</p>
+  <div class="selections-display" id="prevSelectionsDisplay"></div>
+  <p style="color:#94a3b8; font-size:0.8rem; margin-top:12px;">같은 기기·브라우저에서는 한 번만 투표할 수 있어요.</p>
+</div>
+
+<main class="grid" id="grid"></main>
+
+<div class="submit-bar">
+  <button id="submitBtn" disabled>작품을 선택해 주세요</button>
+</div>
+
+<div class="modal-backdrop" id="modalBackdrop">
+  <div class="modal-box">
+    <div class="modal-icon">🎉</div>
+    <h2>투표 완료!</h2>
+    <p>선택하신 작품:</p>
+    <div class="modal-selections" id="modalSelections"></div>
+    <p style="color:#94a3b8; font-size:0.78rem;">참여해 주셔서 감사합니다.</p>
+    <br>
+    <button class="modal-close-btn" onclick="closeModal()">닫기</button>
+  </div>
+</div>
+
+<script>
+  // ── 설정 ──────────────────────────────────────────────────────────────
+  const GAS_URL = 'https://script.google.com/macros/s/AKfycbwjh35opAOe29v6PnjpHN_H1ltAXuaf0nKhBrFougC7jGjLE1LRusX2pPXDm7byUSkrfQ/exec'; // 구글 Apps Script 배포 URL 입력
+  const MAX_SELECT = 3;
+  const STORAGE_KEY = 'voting_done_2026';
+
+  // 작품 목록 (파일 타입별)
+  const works = [
+    { id: 1,  file: 'work_01.png', type: 'image' },
+    { id: 2,  file: 'work_02.png', type: 'image' },
+    { id: 3,  file: 'work_03.png', type: 'image' },
+    { id: 4,  file: 'work_04.png', type: 'image' },
+    { id: 5,  file: 'work_05.png', type: 'image' },
+    { id: 6,  file: 'work_06.png', type: 'image' },
+    { id: 7,  file: 'work_07.png', type: 'image' },
+    { id: 8,  file: 'work_08.png', type: 'image' },
+    { id: 9,  file: 'work_09.png', type: 'image' },
+    { id: 10, file: 'work_10.pdf', type: 'pdf'   },
+    { id: 11, file: 'work_11.mp4', type: 'video' },
+    { id: 12, file: 'work_12.png', type: 'image' },
+    { id: 13, file: 'work_13.png', type: 'image' },
+    { id: 14, file: 'work_14.png', type: 'image' },
+    { id: 15, file: 'work_15.png', type: 'image' },
+    { id: 16, file: 'work_16.png', type: 'image' },
+    { id: 17, file: 'work_17.png', type: 'image' },
+    { id: 18, file: 'work_18.png', type: 'image' },
+    { id: 19, file: 'work_19.png', type: 'image' },
+    { id: 20, file: 'work_20.png', type: 'image' },
+    { id: 21, file: 'work_21.png', type: 'image' },
+    { id: 22, file: 'work_22.png', type: 'image' },
+    { id: 23, file: 'work_23.mp4', type: 'video' },
+    { id: 24, file: 'work_24.png', type: 'image' },
+    { id: 25, file: 'work_25.pdf', type: 'pdf'   },
+    { id: 26, file: 'work_26.png', type: 'image' },
+    { id: 27, file: 'work_27.png', type: 'image' },
+    { id: 28, file: 'work_28.png', type: 'image' },
+    { id: 29, file: 'work_29.png', type: 'image' },
+    { id: 30, file: 'work_30.png', type: 'image' },
+    { id: 31, file: 'work_31.png', type: 'image' },
+    { id: 32, file: 'work_32.png', type: 'image' },
+    { id: 33, file: 'work_33.png', type: 'image' },
+    { id: 34, file: 'work_34.png', type: 'image' },
+    { id: 35, file: 'work_35.png', type: 'image' },
+    { id: 36, file: 'work_36.png', type: 'image' },
+    { id: 37, file: 'work_37.png', type: 'image' },
+    { id: 38, file: 'work_38.png', type: 'image' },
+    { id: 39, file: 'work_39.png', type: 'image' },
+    { id: 40, file: 'work_40.png', type: 'image' },
+    { id: 41, file: 'work_41.jpg', type: 'image' },
+    { id: 42, file: 'work_42.png', type: 'image' },
+    { id: 43, file: 'work_43.png', type: 'image' },
+    { id: 44, file: 'work_44.png', type: 'image' },
+    { id: 45, file: 'work_45.png', type: 'image' },
+    { id: 46, file: 'work_46.png', type: 'image' },
+    { id: 47, file: 'work_47.png', type: 'image' },
+    { id: 48, file: 'work_48.png', type: 'image' },
+    { id: 49, file: 'work_49.png', type: 'image' },
+    { id: 50, file: 'work_50.png', type: 'image' },
+    { id: 51, file: 'work_51.jpg', type: 'image' },
+    { id: 52, file: 'work_52.png', type: 'image' },
+    { id: 53, file: 'work_53.png', type: 'image' },
+    { id: 54, file: 'work_54.jpg', type: 'image' },
+  ];
+
+  // ── 상태 ──────────────────────────────────────────────────────────────
+  let selected = new Set();
+
+  // ── 이미 투표했으면 완료 화면 표시 ────────────────────────────────────
+  const prevVote = localStorage.getItem(STORAGE_KEY);
+  if (prevVote) {
+    document.getElementById('grid').style.display = 'none';
+    document.querySelector('.submit-bar').style.display = 'none';
+    const votedScreen = document.getElementById('votedScreen');
+    votedScreen.style.display = 'flex';
+    const prev = JSON.parse(prevVote);
+    const display = document.getElementById('prevSelectionsDisplay');
+    prev.forEach(id => {
+      const chip = document.createElement('div');
+      chip.className = 'sel-chip';
+      chip.textContent = `작품 ${id}번`;
+      display.appendChild(chip);
+    });
+  }
+
+  // ── 카드 렌더링 ────────────────────────────────────────────────────────
+  function buildMedia(work) {
+    if (work.type === 'image') {
+      return `<img src="images/${work.file}" alt="작품 ${work.id}" loading="lazy">`;
+    }
+    if (work.type === 'video') {
+      return `<video src="images/${work.file}" autoplay loop muted playsinline></video>`;
+    }
+    if (work.type === 'pdf') {
+      return `
+        <div class="pdf-fallback">
+          <div class="pdf-icon">📄</div>
+          <span>PDF 작품</span>
+          <a class="pdf-open-btn" href="images/${work.file}" target="_blank" onclick="event.stopPropagation()">크게 보기 ↗</a>
+        </div>`;
+    }
+    return '';
+  }
+
+  const grid = document.getElementById('grid');
+  if (!prevVote) {
+    works.forEach(work => {
+      const card = document.createElement('div');
+      card.className = 'card';
+      card.dataset.id = work.id;
+      card.innerHTML = `
+        <div class="media-wrap">
+          ${buildMedia(work)}
+          <div class="badge-num">${work.id}</div>
+          <div class="check-mark">
+            <svg viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"/></svg>
+          </div>
+        </div>
+        <div class="card-label">작품 ${work.id}번</div>
+      `;
+      card.addEventListener('click', () => toggleSelect(work.id, card));
+      grid.appendChild(card);
+    });
+  }
+
+  // ── 선택 토글 ──────────────────────────────────────────────────────────
+  function toggleSelect(id, card) {
+    if (card.classList.contains('disabled-card')) return;
+
+    if (selected.has(id)) {
+      selected.delete(id);
+      card.classList.remove('selected');
+    } else {
+      if (selected.size >= MAX_SELECT) return;
+      selected.add(id);
+      card.classList.add('selected');
+    }
+    updateUI();
+  }
+
+  function updateUI() {
+    const count = selected.size;
+    document.getElementById('counterText').textContent = `${count} / ${MAX_SELECT} 선택`;
+    [1, 2, 3].forEach(i => {
+      document.getElementById(`dot${i}`).className = 'dot' + (i <= count ? ' filled' : '');
+    });
+
+    // 3개 채워지면 선택 안 된 카드 흐리게
+    document.querySelectorAll('.card').forEach(c => {
+      const cid = parseInt(c.dataset.id);
+      if (count >= MAX_SELECT && !selected.has(cid)) {
+        c.classList.add('disabled-card');
+      } else {
+        c.classList.remove('disabled-card');
+      }
+    });
+
+    const btn = document.getElementById('submitBtn');
+    if (count === 0) {
+      btn.textContent = '작품을 선택해 주세요';
+      btn.disabled = true;
+    } else {
+      btn.textContent = `${count}개 선택 완료 — 투표하기`;
+      btn.disabled = false;
+    }
+  }
+
+  // ── 투표 제출 ──────────────────────────────────────────────────────────
+  document.getElementById('submitBtn').addEventListener('click', async () => {
+    if (selected.size === 0) return;
+
+    const ids = Array.from(selected).sort((a, b) => a - b);
+
+    // GAS로 전송 (no-cors: 응답 못 읽지만 전송은 됨)
+    if (GAS_URL !== 'YOUR_GAS_WEB_APP_URL_HERE') {
+      try {
+        fetch(GAS_URL, {
+          method: 'POST',
+          mode: 'no-cors',
+          body: JSON.stringify({ votes: ids, time: new Date().toISOString() })
+        });
+      } catch (e) { /* 무시 */ }
+    }
+
+    // localStorage에 저장 (중복 방지)
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(ids));
+
+    // 모달 표시
+    document.getElementById('modalSelections').textContent =
+      ids.map(id => `작품 ${id}번`).join('  ·  ');
+    document.getElementById('modalBackdrop').classList.add('show');
+  });
+
+  function closeModal() {
+    document.getElementById('modalBackdrop').classList.remove('show');
+    // 투표 완료 화면으로 전환
+    document.getElementById('grid').style.display = 'none';
+    document.querySelector('.submit-bar').style.display = 'none';
+    const votedScreen = document.getElementById('votedScreen');
+    votedScreen.style.display = 'flex';
+    const prev = JSON.parse(localStorage.getItem(STORAGE_KEY));
+    const display = document.getElementById('prevSelectionsDisplay');
+    display.innerHTML = '';
+    prev.forEach(id => {
+      const chip = document.createElement('div');
+      chip.className = 'sel-chip';
+      chip.textContent = `작품 ${id}번`;
+      display.appendChild(chip);
+    });
+  }
+</script>
+</body>
+</html>
